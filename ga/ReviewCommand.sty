@@ -1,0 +1,24 @@
+\usepackage{color}
+\usepackage{enumerate}
+\definecolor{BLUE}{rgb}{0,0,1}
+\definecolor{RED}{rgb}{1,0,0}
+\definecolor{GREEN}{rgb}{0,1,0}
+
+\newcounter{fixme_id}
+\newcommand{\FIXME}[1]{\textbf{\color{RED}{FIXME-\arabic{fixme_id}: #1\stepcounter{fixme_id}}}}
+\newcommand{\SPELL}[1]{\textbf{\color{RED}{SPELL-\arabic{fixme_id}: #1\stepcounter{fixme_id}}}}
+\newcommand{\GRAM}[1]{\textbf{\color{RED}{GRAM-\arabic{fixme_id}: #1\stepcounter{fixme_id}}}}
+\newcommand{\PUNC}[1]{\textbf{\color{RED}{PUNC-\arabic{fixme_id}: #1\stepcounter{fixme_id}}}}
+
+\newcommand{\DEL}[1]{\textbf{\color{RED}{\xout{#1}}}}
+\newcommand{\ADD}[1]{\textbf{\color{BLUE}{#1}}}
+\newcommand{\REP}[2]{\DEL{#1}\ADD{#2}}
+
+\newcommand{\KEYWORD}[1]{\textbf{\color{BLUE}{#1}}}
+\newcommand{\TODO}[1]{\textbf{\color{GREEN}{#1}}}
+\newcommand{\OPT}[1]{\textbf{\color{GREEN}{#1}}}
+
+\newcounter{attenion_id}
+\newcommand{\ATT}[1]{\underline{\texttt{\color{RED}{ATT-\arabic{attenion_id}: #1\stepcounter{attenion_id}}}}}
+\newcounter{warning_id}
+\newcommand{\WARNING}[1]{\textbf{\color{RED}{WARNING-\arabic{warning_id}: #1\stepcounter{warning_id}}}}

@@ -1,0 +1,307 @@
+\setcounter{chapter}{3}
+
+\chapter{实验结果与分析}
+
+\section{实验概述}
+
+本章针对第\ref{sec:CoreAlgorithm}章推导过程中提出的问题与猜想，设计相应的实验内容和实验场景给予验证和对比。本文主要提出了基于特征空间划分的算法级绘制性能瓶颈识别技术，用来解决在复杂绘制系统中无法确认全局性能瓶颈的问题，由第\ref{sec:CoreAlgorithm} 章的讨论可知，局部性能瓶颈识别的核心在于特征空间的合理划分，这要求划分后的子空间在重新计算各参数的变量重要性时，其变量重要性仍保证计算结果的稳定性，因此第一个实验被设计用来证明本文算法在任意局部子空间，参数变量重要性的计算稳定性；实验二包含两个子实验，共同验证本文预采集性能数据的正确性，为之后的实验内容提供验证基础；第三个实验针对\ref{sec:GenInitialPopulation}部分提出的关于初始种群优化生成算法给予对比验证；第四个实验设计用来验证单点交叉和多点交叉针对本文不同的多个绘制场景的影响；最后，实验验证本文算法优化局部性能瓶颈识别过程的有效性；
+
+\section{实验环境}
+
+本文实验主要软硬件环境配置如表\ref{table:ExperimentalEnvironment}所示：
+
+\begin{table}
+    \begin{center}
+        %EXCEL表格直接复制过来的 注意数学符号需要加上$...$
+        \begin{tabular}{|c|c|c|}
+          \hline
+          %跨行（将两行合并为一行） 第一个参数指明跨几行 记得下一行对应位置空出来 不然会重叠
+          \multirow{3}{*}{硬件环境} & CPU & Intel(R)Core(TM)i7-6900k@3.2GHz \\
+          \cline{2-3}
+           & 内存 & 32.00GB \\
+          \cline{2-3}
+          & 显卡 & NVIDIA GeForce GTX-1080 \\
+          \hline
+          \multirow{3}{*}{软件环境} & 操作系统 & Windows 10 Home \\
+          \cline{2-3}
+           & 编译器 & Visual Studio 2015 \\
+          \cline{2-3}
+          & 开发库 & OpenGL 4.5 \\
+          \hline
+        \end{tabular}
+        \caption{实验软硬件环境}
+        \label{table:ExperimentalEnvironment}
+    \end{center}
+\end{table}
+
+为构建复杂绘制系统的实验环境，本文为绘制场景引入多种绘制算法。本文采用DiningRoom模型（规模54,011个三角面片）作为测试绘制场景，并在场景中随机分布300个动态光源与25 个位置随机的静态透明物体，测试场景效果图如图\ref{Fig.DiningRoom}所示。
+
+本文绘制系统基于延迟渲染框架\cite{Lauritzen2010Deferred}。 在此基础上实现基于光源链表的动态光源算法（LLL 算法）\cite{abdul2016}以产生大量动态光源的光照效果。实现顺序无关透明渲染算法（OIT算法）\cite{thibieroz2011order}以完成对场景中透明物体的渲染。同时进一步在场景中引入基于屏幕空间环境光遮挡算法（SSAO 算法）\cite{Bavoil2008Screen}，该算法是基于屏幕像素的图像增强算法，用于进一步优化本文绘制系统的渲染效果。
+
+\begin{figure}[!h]
+	\centering{
+	\includegraphics[width=1.0\linewidth]{figures/scene_diningroom.png}}
+	\caption{测试场景效果图.}
+	\label{Fig.DiningRoom}
+\end{figure}
+
+上述渲染系统中使用的算法级参数详细介绍如下：
+
+\begin{itemize}
+    \item LLL算法：本实验尝试找到光源分布对帧率的影响。因此整个视椎体根据与视点的距离将被划分为三个部分（近距离区域、中间距离区域和远距离区域），分别动态地记录位于这些区域中光源的个数，记为$(N_n, N_m, N_f)$，作为实验输入的算法级参数。另外，光圆半径$R_L$也是另一个被研究的算法级参数。
+    \item OIT算法：该算法中引入两个值得被研究的算法级参数。$S_{trans}$ 表示透明物体包围盒投影到屏幕面积之和；$N_{trans}$ 表示可见透明物体的个数；
+    \item SSAO算法：该算法中同样引入两个算法级参数：采样半径$R_S$，采样点个数$N_S$。
+\end{itemize}
+
+本文采用路径漫游方式预采集得到性能数据集，路径是所有视点位置串联成的一组信息集合。具体过程分为两大步骤：第一步，在当前绘制场景下生成一条遍历整个场景的随机漫游路径记录并保存；第二步，再现当前路径，在路径的任意一点随机扰动各算法级参数的有效取值并保存，同时保存当前视点的信息，包括视点的世界坐标信息：$(x, y, z)$ 以及视点的方向信息：$(\alpha, \beta)$，最后保存记录下当前绘制一帧消耗的时间$t$，最终得到一组包含14维的性能数据集。数据集各参数说明参见表\ref{table:Parameters}：
+
+\begin{table}[!h]
+    \tiny
+    \centering
+    \begin{tabular}{|l|c|c|c|}
+      \hline
+      No. & 参数 & 数据类型 & 有效取值范围 \\
+      \hline
+      1 & $x$ & float & [-2.0, 2.0] \\
+      \hline
+      2 & $y$ & float & [-2.0, 2.0] \\
+      \hline
+      3 & $z$ & float & [-6.0, 6.0] \\
+      \hline
+      4 & $\alpha$ & float & [$0, 2\pi$] \\
+      \hline
+      5 & $\beta$ & float & [$0, \pi$] \\
+      \hline
+      6 & $N_n$ & integer & [0, 16] \\
+      \hline
+      7 & $N_m$ & integer & [0, 97] \\
+      \hline
+      8 & $N_f$ & integer & [0, 226] \\
+      \hline
+      9 & $R_L$ & float & [1.0, 1.4] \\
+      \hline
+      10 & $S_{trans}$ & integer & [0, 13523000] \\
+      \hline
+      11 & $N_{trans}$ & integer & [0, 25] \\
+      \hline
+      12 & $R_S$ & integer & [7, 18] \\
+      \hline
+      13 & $N_S$ & integer & [4, 30] \\
+      \hline
+      14 & $t$ & float & [4.26701, 28.39550] \\
+      \hline
+    \end{tabular}
+    \caption{场景参数配置}
+    \label{table:Parameters}
+\end{table}
+
+本文所有实验使用的回归森林参数配置参见表\ref{table:RFParameters}，该配置保证模型的预测准确率大致为MSE=0.63。
+
+\begin{table}[!h]
+    \tiny
+    \centering
+    \begin{tabular}{|c|c|}
+      \hline
+      参数 & 数值 \\
+      \hline
+      森林规模 & 200棵 \\
+      \hline
+      最大树深 & 1000 \\
+      \hline
+      节点包含最小数据量 & 5条 \\
+      \hline
+      节点划分方式 & 信息增益法 \\
+      \hline
+    \end{tabular}
+    \caption{回归森林参数配置}
+    \label{table:RFParameters}
+\end{table}
+
+\section{实验设计与结果}
+
+\subsection{验证基于场景稀疏采样数据的正确性}
+
+\subsubsection{实验目的}
+
+本文预采集性能数据集是基于测试场景的稀疏采样结果，该实验用以验证本文为后续算法提供的规模为150,000条数据的性能数据集能够描述测试场景。基于测试场景的稀疏采样是指对场景所在参数空间$\mathbb{P}=\{\mathbf{V}(\mathbf{p}_1)\times \mathbf{V}(\mathbf{p}_2)\times ... \times \mathbf{V}(\mathbf{p}_N)\}$的稀疏采样。稀疏采样是有必要的，由于本文方法对于算法级参数的个数可扩展，即当参数空间的维度不断增加时，参数空间的规模将呈现指数级的增长，以前6维的算法级参数为例，假设$x, y, z, \alpha, \beta, N_n$的有效取值为10个，则此时的有效组合共有1,000,000个，参数空间的规模会随着算法级参数的增加而成指数级增长，而海量的数据规模将极大地减慢算法的效率。而实际上，对参数空间$\mathbb{P}$ 的完全采样是没有必要的，由于参数空间中邻近数据对构建回归森林学习模型的贡献能力是相似的，随着邻近数据数量的不断增加，这种贡献能力将逐渐趋于饱和，而根据\cite{Breiman2001Random}可知，回归森林模型对欠采样甚至数据缺失时仍维持精确度。因此本文在进行大量测试之后将性能数据集规模确定在150,000 个。
+
+\subsubsection{输入数据}
+
+本文根据前文中描述的漫游路径方式，预先在测试场景中随机生成4条漫游路径，每条漫游路径根据不同的随机移动方式遍历整个测试场景。在这些漫游路径上分别收集150,000条性能数据构成4组性能数据集。本文通过4组性能数据集分别计算出各算法级参数的变量重要性结果，结果如表\ref{tab:StableVI}所示。
+
+\subsubsection{结果分析}
+
+\begin{table}[!h]
+    \tiny
+    \newcommand{\tabincell}[2]{\begin{tabular}{@{}#1@{}}#2\end{tabular}}
+    \centering
+    \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+          \hline
+            & x & y & z & $\alpha$ & $\beta$ & $N_n$ & $N_m$ & $N_f$ & $R_L$ & $R_s$ & $N_s$ & $A_o$ & $N_o$ \\
+          \hline
+          1 & \tabincell{c}{0.446\\(1.0\%)} & \tabincell{c}{0.465\\(1.5\%)}&\tabincell{c}{0.782\\(0.7\%)}&\tabincell{c}{0.322\\(7.3\%)}&\tabincell{c}{0.676\\(4.5\%)}&\tabincell{c}{0.275\\(2.4\%)}&\tabincell{c}{2.000\\(0.1\%)}&\tabincell{c}{1.766\\(2.4\%)}&	\tabincell{c}{2.139\\(0.1\%)}&\tabincell{c}{0.060\\(1.2\%)}&\tabincell{c}{1.900\\(0.6\%)}&\tabincell{c}{1.916\\(0.5\%)}&\tabincell{c}{0.740\\(0.5)\%}\\
+          \hline
+          2 & \tabincell{c}{0.446\\(1.2\%)}&\tabincell{c}{0.468\\(2.3\%)}&	\tabincell{c}{0.761\\(1.9\%)}&	\tabincell{c}{0.325\\(8.5\%)}&	\tabincell{c}{0.647\\(0.04\%)}&	\tabincell{c}{0.289\\(4.0\%)}&	\tabincell{c}{1.986\\(0.8\%)}&	\tabincell{c}{1.779\\(1.7\%)}&	\tabincell{c}{2.138\\(0.05\%)}&	\tabincell{c}{0.058\\(3.3\%)}&	\tabincell{c}{1.888\\(1.3\%)}&	\tabincell{c}{1.898\\(0.4\%)}&	\tabincell{c}{0.761\\(2.3\%)}\\
+          \hline
+          3 & \tabincell{c}{0.445\\(0.8\%)	}&\tabincell{c}{0.462\\(0.9\%)	}&\tabincell{c}{0.779\\(0.3\%)	}&\tabincell{c}{0.317\\(5.7\%)	}&\tabincell{c}{0.641\\(0.9\%)	}&\tabincell{c}{0.290\\(4.1\%)	}&\tabincell{c}{1.966\\(1.8\%)	}&\tabincell{c}{1.757\\(2.9\%)	}&\tabincell{c}{2.136\\(0.1\%)	}&\tabincell{c}{0.058\\(2.4\%)	}&\tabincell{c}{1.902\\(0.5\%)	}&\tabincell{c}{1.925\\(1.0\%)	}&\tabincell{c}{0.723\\(2.8\%)}
+ \\
+          \hline
+          4 & \tabincell{c}{0.428\\(3.0\%)	}&\tabincell{c}{0.436\\(4.7\%)	}&\tabincell{c}{0.784\\(0.9\%)	}&\tabincell{c}{0.235\\(11.5\%)	}&\tabincell{c}{0.624\\(3.6\%)	}&\tabincell{c}{0.249\\(10.2\%)	}&\tabincell{c}{2.055\\(2.7\%)	}&\tabincell{c}{1.937\\(7.0\%)	}&\tabincell{c}{2.136\\(0.05\%)	}&\tabincell{c}{0.062\\(5.0\%) }&\tabincell{c}{1.958\\(2.4\%)	}&\tabincell{c}{1.884\\(1.2\%)	}&\tabincell{c}{0.751\\(1.0\%)}
+ \\
+          \hline
+          average & 0.441 & 0.458 & 0.776 & 0.300 & 0.647 & 0.278 & 2.002 & 1.810 & 2.137 & 0.059 & 1.912 & 1.906 & 0.744
+ \\
+
+          \hline
+    \end{tabular}
+    \caption{稀疏采样数据的VI计算结果}
+    \label{tab:StableVI}
+\end{table}
+
+如表\ref{tab:StableVI}所示，表中前4行数据是13个算法级参数的VI计算结果（表中仅保留到小数点后3位），第5行数据是某算法级参数4组数据VI计算结果的平均值，括号中的数值表示该VI值与其对应平均值的偏差百分比。
+
+\begin{figure}[!h]
+	\centering{
+	\includegraphics[width=.9\linewidth]{figures/Fig_count.png}}
+	\caption{VI值百分比偏差统计.}
+	\label{Fig.count}
+\end{figure}
+
+由分析可知，基于测试场景的稀疏采样是行之有效的。有效性具体表现在：本文预采集性能数据集的数据量为150,000时，通过4 组不同的性能数据集计算出各个算法级参数的VI 值是基本稳定的，对应平均值的偏差百分比保持在20.0\%以内，这是保证VI稳定性的阈值上限。进一步由图\ref{Fig.count}统计表\ref{tab:StableVI}中的偏差百分比可知，此时的偏差百分比大多集中在(0.0\%, 3.0\%]中间，这保证了VI计算结果是稳定可靠的，也说明了本文基于场景稀疏采样得到性能数据集的正确性。
+
+\subsection{验证VI计算结果的稳定性}
+
+\subsubsection{实验目的}
+
+该实验用来证明VI计算结果是稳定的，VI计算结果是否稳定直接导致基于特征空间划分的结果可靠与否。由第\ref{sec:CoreAlgorithm}章分析可知，性能数据集根据不同的划分超平面被划分到不同子数据集，因此子空间的数据规模会不断减小，然而此数据规模存在下限，这是由于：当参与VI计算的输入数据量小于一定阈值时，VI的计算结果不再稳定。因此，本文方法需要确保任意数据子集中VI 计算结果的稳定性。换言之，本文需要通过该实验明确阈值的具体数值，使得子数据集参与VI计算的数据量小于该阈值时，VI 的计算结果将不再稳定。
+
+\subsubsection{输入数据}
+
+该实验从150,000条的性能数据集中随机抽取数据记录，分别生成7组具备不同数据规模的性能数据集，数据规模分别为5,000条，6,000条，7,000条，8,000条，9,000条，50,000条，100,000条。随后将7组性能数据集分别作为VI 计算的输入数据进行各算法级参数VI值的计算。上述VI计算过程重复10次，并记录下各参数VI平均值。
+
+\subsubsection{结果分析}
+
+如表\ref{tab:Minimum Data Size}所示，表中每行数据是13个算法级参数VI 计算结果的平均值，而括号内数据表示该数值与表\ref{tab:StableVI}中相对应VI平均值的偏差百分比。
+
+由分析可知，当参与计算VI值的数据量小于7,000条时，参数$R_s$的VI计算结果其偏差百分比均大于20.0\%，并且进一步随着数据量的减少，其偏差百分比逐渐增大至33\%。 由此分析可知，当数据量小于7,000条时，VI的计算结果价格不再保证稳定。因此，本文在进行瓶颈分析树构建时要求任意节点的数据量至少包含8,000条记录。
+
+\begin{table}[!h]
+    \tiny
+    \newcommand{\tabincell}[2]{\begin{tabular}{@{}#1@{}}#2\end{tabular}}
+    \centering
+    \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+          \hline
+            & x & y & z & $\alpha$ & $\beta$ & $N_n$ & $N_m$ & $N_f$ & $R_L$ & $R_s$ & $N_s$ & $A_o$ & $N_o$ \\
+          \hline
+          5000 & \tabincell{c}{0.455\\(3.1\%)} & \tabincell{c}{0.468\\(2.1\%)}&\tabincell{c}{0.779\\(0.3\%)}&\tabincell{c}{0.317\\(5.9\%)}&\tabincell{c}{0.637\\(1.6\%)}&\tabincell{c}{0.277\\(0.3\%)}&\tabincell{c}{2.019\\(0.9\%)}&\tabincell{c}{1.768\\(2.3\%)}&	\tabincell{c}{2.142\\(0.2\%)}&\tabincell{c}{0.079\\\bfseries{(33\%)}}&\tabincell{c}{1.902\\(0.5\%)}&\tabincell{c}{1.941\\(1.8\%)}&\tabincell{c}{0.719\\(3.3)\%}\\
+          \hline
+          6000 & \tabincell{c}{0.459\\(4\%)}&\tabincell{c}{0.471\\(2.9\%)}&	\tabincell{c}{0.785\\(1.1\%)}&	\tabincell{c}{0.329\\(9.7\%)}&	\tabincell{c}{0.638\\(1.3\%)}&	\tabincell{c}{0.289\\(3.8\%)}&	\tabincell{c}{2.035\\(1.7\%)}&	\tabincell{c}{1.785\\(1.4\%)}&	\tabincell{c}{2.147\\(0.4\%)}&	\tabincell{c}{0.075\\\bfseries{(25.8\%)}}&	\tabincell{c}{1.895\\(0.9\%)}&	\tabincell{c}{1.92\\(0.7\%)}&	\tabincell{c}{0.713\\(4.2\%)}\\
+          \hline
+          7000 & \tabincell{c}{0.452\\(2.5\%)	}&\tabincell{c}{0.466\\(1.8\%)	}&\tabincell{c}{0.78\\(0.4\%)	}&\tabincell{c}{0.325\\(8.3\%)	}&\tabincell{c}{0.642\\(0.8\%)	}&\tabincell{c}{0.279\\(0.2\%)	}&\tabincell{c}{2.007\\(0.3\%)	}&\tabincell{c}{1.777\\(1.8\%)	}&\tabincell{c}{2.089\\(2.2\%)	}&\tabincell{c}{0.072\\\bfseries{(20.8\%)}	}&\tabincell{c}{1.851\\(3.2\%)	}&\tabincell{c}{1.955\\(2.6\%)	}&\tabincell{c}{0.718\\(3.5\%)}
+ \\
+          \hline
+          8000 & \tabincell{c}{0.454\\(2.9\%)	}&\tabincell{c}{0.463\\(1.2\%)	}&\tabincell{c}{0.78\\(0.4\%)	}&\tabincell{c}{0.322\\(7.5\%)	}&\tabincell{c}{0.633\\(2.2\%)	}&\tabincell{c}{0.284\\(2.2\%)	}&\tabincell{c}{2.016\\(0.7\%)	}&\tabincell{c}{1.78\\(1.6\%)	}&\tabincell{c}{2.128\\(0.5\%)	}&\tabincell{c}{0.068\\\bfseries{(15\%)} }&\tabincell{c}{1.875\\(1.9\%)	}&\tabincell{c}{1.926\\(1.1\%)	}&\tabincell{c}{0.724\\(2.7\%)}
+ \\
+          \hline
+          9000  & \tabincell{c}{0.457\\(3.6\%)	}&\tabincell{c}{0.463\\(1.1\%)	}&\tabincell{c}{0.782\\(0.7\%)	}&\tabincell{c}{0.32\\(6.8\%)	}&\tabincell{c}{0.634\\(2\%)	}&\tabincell{c}{0.274\\(1.4\%)	}&\tabincell{c}{1.983\\(0.9\%)	}&\tabincell{c}{1.766\\(2.5\%)	}&\tabincell{c}{2.094\\(2\%)	}&\tabincell{c}{0.064\\\bfseries{(7.8\%)}	}&\tabincell{c}{1.918\\(0.3\%)	}&\tabincell{c}{1.926\\(1\%)	}&\tabincell{c}{0.725\\(2.5\%)}
+ \\
+
+          \hline
+          50000  & \tabincell{c}{0.456\\(3.3\%)	}&\tabincell{c}{0.465\\(1.5\%)	}&\tabincell{c}{0.779\\(0.4\%)	}&\tabincell{c}{0.323\\\bfseries{(7.8\%)}	}&\tabincell{c}{0.634\\(2\%)	}&\tabincell{c}{0.284\\(2.1\%)	}&\tabincell{c}{2.011\\(0.5\%)	}&\tabincell{c}{1.766\\(1.9\%)	}&\tabincell{c}{2.129\\(0.4\%)	}&\tabincell{c}{0.057\\(4.4\%)	}&\tabincell{c}{1.897\\(0.8\%)	}&\tabincell{c}{1.928\\(1.2\%)	}&\tabincell{c}{0.723\\(2.8\%)}
+ \\
+
+          \hline
+          100000 & \tabincell{c}{0.455\\(3.2\%)	}&\tabincell{c}{0.463\\(1.1\%)	}&\tabincell{c}{0.777\\(0.1\%)	}&\tabincell{c}{0.323\\\bfseries{(7.7\%)}	}&\tabincell{c}{0.635\\(1.9\%)	}&\tabincell{c}{0.283\\(1.7\%)	}&\tabincell{c}{2.008\\(0.3\%)	}&\tabincell{c}{1.776\\(1.9\%)	}&\tabincell{c}{2.135\\(0.1\%)	}&\tabincell{c}{0.057\\(4.6\%)	}&\tabincell{c}{1.894\\(1\%)	}&\tabincell{c}{1.922\\(0.9\%)	}&\tabincell{c}{0.723\\(2.8\%)}
+\\
+
+          \hline
+    \end{tabular}
+    \caption{VI稳定性的最小数据量}
+    \label{tab:Minimum Data Size}
+\end{table}
+
+\subsection{验证初始种群优化算法的有效性}
+
+\subsubsection{实验目的}
+
+该实验用来验证本文针对类遗传策略提出的初始种群优化的有效性。实验使用同一组规模为150,000条记录的性能数据集，并保证回归森林各参数一致、种群规模200个个体的前提下，以如下全随机方式和本文\ref{sec:GenInitialPopulation}提出的带权重优化方式完成初始种群的构建，并完成20次的种群迭代：
+
+\subsubsection{结果分析}
+
+\begin{figure}[!h]
+	\centering{
+	\includegraphics[width=1.0\linewidth]{figures/Average_Fitness_Comparison.png}}
+	\caption{种群平均适应度随迭代次数的变化.}
+	\label{Fig.InitPopulationVS}
+\end{figure}
+
+图\ref{Fig.InitPopulationVS}显示了两种方式下从初始种群开始，种群平均适应度随迭代次数的变化情况，其中蓝色曲线表示本文优化方法生成的初始种群的演化结果，而橙色曲线表示完全随机初始初始种群的演化结果。由图分析可知，本文优化初始种群方法是有效的，其有效性具体表现在如下两点：首先，按照本文优化算法可以有效提高初始种群开始的个体适应度；其次，根据图\ref{Fig.InitPopulationVS}曲线的走势来看，橙色曲线虽然在前8 次迭代中种群的平均适应度有着较快的提升，但由于起点位置较低，橙色曲线表示的种群平均适应度始终没能超过蓝色曲线。这表明当迭代逐渐趋于收敛时，由本文优化方法的初始种群得到的结果要优于全随机方法的结果。
+
+同时，从图\ref{Fig.InitPopulationVS}分析得出的另一个结论是：无论初始种群采用怎样的方式生成，本文实现的进化策略是有效的，其逐步提高了个体的适应度。
+
+%\subsection{对比单点交叉与多点交叉对种群收敛速度的影响}
+
+\subsection{验证类遗传策略识别局部性能瓶颈的有效性}
+
+\subsubsection{实验目的}
+
+该实验设计用来验证在相同绘制环境下，通过类遗传算法策略分析得到的瓶颈分析树比贪心策略得到的瓶颈分析树形态更好且更稳定。实验使用同一组规模为150,000条记录的性能数据集，并保证回归森林各参数一致的前提下，分别利用类遗传策略和贪心策略生成瓶颈分析树，重复10次。
+
+\subsubsection{结果分析}
+
+本文利用图\ref{Fig.GA_2}和图\ref{Fig.BAT_2}对10次实验结果进行分析说明，其中图\ref{Fig.GA_2}表示类遗传策略生成的瓶颈分析树，图\ref{Fig.BAT_2}表示贪心策略生成的瓶颈分析树。对比分析图\ref{Fig.GA_2_a}与图\ref{Fig.GA_2_b}可知，利用类遗传策略生成的瓶颈分析树其划分结果基本保持稳定，其差异主要在于C 节点$\beta$属性的划分点上，这是由于两个浮点型的划分点对数据集的划分仅存在微小的差别，但这并不影响最终结果的判定，事实上由图中各叶子节点的局部瓶颈可知两个瓶颈分析树可以得到一致的结果。对比分析图\ref{Fig.BAT_2_a}与图\ref{Fig.BAT_2_b}、\ref{Fig.BAT_2_c}可知，利用贪心策略生成的瓶颈分析树其划分结果并不保证一致。图\ref{Fig.BAT_2_b}与\ref{Fig.BAT_2_c} 可以认为结果基本一致，原因同上。但对比图\ref{Fig.BAT_2_a}与图\ref{Fig.BAT_2_b}可知，由于在R节点选取划分属性$N_m$和$N_f$ 在实际计算各自$\mathfrak{S}(\mathcal{H})$ 时数值接近，而VI 值的浮动直接造成两种情况均会出现，并进一步导致各自A节点也选取的划分方式不同，这种变化逐级传递，最终致使各叶子节点中得到的性能瓶颈结果有较大差异。
+
+\begin{figure*}[!htb]
+	\centering
+    \subfigure[]{
+ 	   \label{Fig.GA_2_a}
+		\includegraphics[width=.48\linewidth]{figures/GA_2922.png}}
+    \subfigure[]{
+   		\label{Fig.GA_2_b}
+   		\includegraphics[width=.48\linewidth]{figures/GA_2781.png}}
+	\caption{类遗传策略生成的瓶颈分析树.}
+	\label{Fig.GA_2}
+\end{figure*}
+
+\begin{figure*}[!htb]
+	\centering
+    \subfigure[]{
+ 	   \label{Fig.BAT_2_a}
+		\includegraphics[width=.48\linewidth]{figures/BAT_48.png}}
+    \subfigure[]{
+   		\label{Fig.BAT_2_b}
+   		\includegraphics[width=.48\linewidth]{figures/BAT_4082.png}}
+   \subfigure[]{
+   		\label{Fig.BAT_2_c}
+   		\includegraphics[width=.48\linewidth]{figures/BAT_4376.png}}
+	\caption{贪心策略生成的瓶颈分析树.}
+	\label{Fig.BAT_2}
+\end{figure*}
+
+图\ref{Fig.GA_Result}和图\ref{Fig.BAT_Result}分别表示通过类遗传策略和贪心策略生成瓶颈分析树的结果。由图可知，通过类遗传策略生成的瓶颈分析树形态要优于通过贪心策略生成的瓶颈分析树，原因是：类遗传策略可以在任意一个子空间确定唯一的性能瓶颈。考虑对瓶颈分析树适应度的得分，遗传策略瓶颈分析树的适应度得分为0.86262，而贪心策略瓶颈分析树的适应度得分为0.771819。遗传策略相对于贪心策略有以下两大方面的优势：一方面在高维空间寻找更合理划分方案时，遗传策略倾向去寻找最优解；另一方面，贪心策略在确定局部性能瓶颈时存在布尔值的判断结果，这对划分超平面的选取不利。
+
+\begin{figure*}[!htb]
+	\centering
+    \subfigure[]{
+ 	   \label{Fig.GA_Result}
+		\includegraphics[width=.48\linewidth]{figures/GA_Result.png}}
+    \subfigure[]{
+   		\label{Fig.BAT_Result}
+   		\includegraphics[width=.48\linewidth]{figures/BAT_Result.png}}
+	\caption{两种策略生成瓶颈分析树.}
+	\label{Fig.BAT_VS_GA}
+\end{figure*}
+
+根据图\ref{Fig.GA_Result}，利用遗传策略确定的局部性能瓶颈是：
+
+\begin{itemize}
+    \item 当$N_S\leq 23, N_f\leq 8$且$\beta \leq 2.922$时，性能瓶颈为$S_{trans}$。这是因为测试场景中透明物体被集中放置在空间的一侧，当视点的旋转角小于等于2.922弧度时，更多的透明物体将会进入视域范围内，因此$S_{trans}$将急剧成为影响绘制时间的因素。
+    \item 当$N_S\leq 23, N_f\leq 8$且$\beta > 2.922$时，性能瓶颈是$N_m$。 这是因为此时透明物体减少，而在距离视点中部区域的光源数量其影响绘制时间的重要程度已经超过了绘制透明物体所消耗的时间。
+    \item 当$N_S\leq 23, N_f > 8$时，性能瓶颈是$R_L$。这表明在此空间中，距离视点远部区域的光源半径已经严重影响绘制效率。
+    \item 当$N_S > 23, N_f \leq 4$时，性能瓶颈是$S_{trans}$。这是因为在该空间中，采样点个数增大到一定阈值时，继续按照该线性方式增加采样点的数量已经无法再有效影响绘制时间了，同时距离视点远部区域的光源已经很少了，因此此时$S_{trans}$的影响力相对增加。
+    \item 当$N_S > 23, N_f > 4$时，性能瓶颈是$R_L$。这同样是由于距离视点远部区域的光源个数偏多造成的。
+\end{itemize}
+
+\section{本章小结}
+
+本章对本文基于瓶颈分析树进行局部性能瓶颈分析的算法进行了验证与分析。首先完成了对基于稀疏采样原理的性能数据集其数据正确性的验证，并在此基础上完成子空间VI 计算稳定性的验证工作，同时验证分析了本文提出初始种群优化方法的有效性，并通过对比试验验证了基于类遗传策略的瓶颈分析树在确定局部性能瓶颈时优于贪心策略的瓶颈分析树。

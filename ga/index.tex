@@ -1,0 +1,90 @@
+%% Thesis Template of Chinese Academy of Sciences
+%%   for using CASthesis package with LaTeX2e
+%%
+%% Created by Ling-Yun Wu <aloft@ctex.org>
+%%
+%% $Id: template.tex,v 1.10 2007/01/09 05:10:46 aloft Exp $
+
+
+%\documentclass[dvipdfm]{CASthesis}
+\documentclass[pdftex]{CASthesis}
+% 可选参数：
+% notypeinfo 取消扉页的LaTeX版本信息
+%
+% 下面三个选一个：
+% dvipdfm 使用 dvipdfm(x) 生成最终的 PDF 文档 (缺省设置）
+% dvips 使用 dvips 生成最终的 PS 文档
+% pdftex 使用 pdfLaTeX 生成最终的 PDF 文档
+
+
+% 设置图形文件的搜索路径
+\graphicspath{{chapter/}{figures/}}
+
+% 取消链接的颜色（黑白打印时）
+%\hypersetup{colorlinks=false}
+
+% 小节标题靠左对齐
+%\CTEXsetup[format+={\flushleft}]{section}
+
+\usepackage{color}
+\usepackage{enumerate}
+\usepackage[english]{babel}
+\usepackage{ReviewCommand}
+\usepackage{subfigure}
+\usepackage{multirow}
+
+\begin{document}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 封面部分
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  % 中文封面内容
+
+  \serialnumber{001}
+  \title{基于特征空间划分的算法级绘制性能瓶颈识别的研究与实现}
+  \author{梁子}
+  \institute{四川大学计算机学院}
+
+
+  % 封面
+  \maketitle
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 前言部分
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\frontmatter
+
+  % 摘要
+  \include{chapter/Abstract}
+  \include{chapter/AbstractEng}
+
+  % 目录
+  \tableofcontents
+  % 表格目录
+
+
+ % \listoftables
+  % 插图目录
+  \listoffigures
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 正文部分
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\mainmatter
+
+%请按照模板的目录结构来组织论文，不要擅自修改目录结构
+
+
+  \include{chapter/Chapter-01}
+  \include{chapter/Chapter-02}
+  \include{chapter/Chapter-03}
+  \include{chapter/Chapter-04}
+  \include{chapter/Chapter-05}
+  \bibliographystyle{plain}
+  \bibliography{reference}
+\end{document}
